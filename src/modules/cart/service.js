@@ -9,7 +9,7 @@ async function getOrCreateCart(customerId, shopId) {
   let cart = await prisma.cart.findUnique({ where: { customerId } });
   if (!cart) {
     cart = await prisma.cart.create({
-      data: { customerId, shopId: shopId || null, items: '[]' },
+      data: { customerId, shopId: shopId ? shopId : null, items: '[]' },
     });
   } else if (shopId && cart.shopId && cart.shopId !== shopId) {
     const items = JSON.parse(cart.items || '[]');
@@ -100,86 +100,3 @@ async function summarize(customerId) {
 
 module.exports = { getOrCreateCart, addItem, updateItem, clear, summarize };
 
-function getOrCreateCart(customerId, shopId) {
-  let cart = db.carts.find((c) => c.customerId === customerId);
-  if (!cart) {
-    cart = { id: uuid(), customerId, shopId, items: [], updatedAt: new Date().toISOString() };
-    db.carts.push(cart);
-  } else if (shopId && cart.shopId && cart.shopId !== shopId && cart.items.length > 0) {
-    // PRD only allows adding items from another store as part of an existing
-    // order's unavailable-item flow (handled in the orders module) — a plain
-    // cart is single-shop.
-    throw new ApiError(409, 'Cart already has items from a different shop. Clear cart first.');
-  } else if (shopId) {
-    cart.shopId = shopId;
-  }
-  return cart;
-}
-
-function addItem(customerId, { shopId, shopProductId, quantity }) {
-  const cart = getOrCreateCart(customerId, shopId);
-  const existing = cart.items.find((i) => i.shopProductId === shopProductId);
-  if (existing) {
-    existing.quantity += quantity;
-  } else {
-    cart.items.push({ shopProductId, quantity });
-  }
-  cart.updatedAt = new Date().toISOString();
-  return cart;
-}
-
-function updateItem(customerId, shopProductId, quantity) {
-  const cart = getOrCreateCart(customerId);
-  const item = cart.items.find((i) => i.shopProductId === shopProductId);
-  if (!item) throw new ApiError(404, 'Item not in cart');
-  if (quantity <= 0) {
-    cart.items = cart.items.filter((i) => i.shopProductId !== shopProductId);
-  } else {
-    item.quantity = quantity;
-  }
-  cart.updatedAt = new Date().toISOString();
-  return cart;
-}
-
-function clear(customerId) {
-  const cart = getOrCreateCart(customerId);
-  cart.items = [];
-  cart.shopId = null;
-  return cart;
-}
-
-// PRD 6 — Shopping Cart displays: product price, platform fee, delivery fee, taxes, total
-function summarize(customerId) {
-  const cart = getOrCreateCart(customerId);
-  const lines = cart.items.map((item) => {
-    const shopProduct = db.shopProducts.find((sp) => sp.id === item.shopProductId);
-    if (!shopProduct) throw new ApiError(404, `Shop product ${item.shopProductId} not found`);
-    const product = db.products.find((p) => p.id === shopProduct.productId);
-    const lineTotal = shopProduct.price * item.quantity;
-    return {
-      shopProductId: item.shopProductId,
-      productName: product ? product.name : 'Unknown product',
-      unitPrice: shopProduct.price,
-      quantity: item.quantity,
-      available: shopProduct.available,
-      lineTotal,
-    };
-  });
-
-  const subtotal = lines.reduce((sum, l) => sum + l.lineTotal, 0);
-  const tax = Number((subtotal * TAX_RATE).toFixed(2));
-  const platformServiceFee = lines.length ? PLATFORM_SERVICE_FEE : 0;
-  const deliveryFee = lines.length ? DELIVERY_FEE : 0;
-  const total = Number((subtotal + tax + platformServiceFee + deliveryFee).toFixed(2));
-
-  return {
-    cartId: cart.id,
-    shopId: cart.shopId,
-    items: lines,
-    subtotal,
-    tax,
-    platformServiceFee,
-    deliveryFee,
-    total,
-  };
-}
