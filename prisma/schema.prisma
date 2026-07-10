@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  mobile       String   @unique
+  name         String?
+  email        String?
+  passwordHash String?
+  fcmToken     String?
+  googleId     String?
+  createdAt    DateTime @default(now())
+
+  roles         UserRole[]
+  addresses     Address[]
+  ownedShops    Shop[]
+  cart          Cart?
+  orders        Order[]
+  payments      Payment[]
+  notifications Notification[]
+  settlements   Settlement[]
+  deliveries    Delivery[]
+  auditLogs     AuditLog[]
+}
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  role   String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+}
+
+model Address {
+  id        String   @id @default(uuid())
+  userId    String
+  line1     String
+  city      String
+  lat       Float?
+  lng       Float?
+  createdAt DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+}
+
+model Otp {
+  id        String   @id @default(uuid())
+  mobile    String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id             String   @id @default(uuid())
+  name           String
+  brand          String?
+  category       String?
+  unitOfMeasure  String?
+  images         String   @default("[]") // JSON array of URLs
+  barcode        String?
+  description    String   @default("")
+  searchKeywords String   @default("[]") // JSON array
+  gstCategory    String?
+  defaultTaxRate Float    @default(0)
+  createdAt      DateTime @default(now())
+
+  shopProducts ShopProduct[]
+}
+
+model Shop {
+  id               String   @id @default(uuid())
+  ownerId          String
+  name             String
+  category         String?
+  city             String?
+  locality         String?
+  lat              Float?
+  lng              Float?
+  deliveryRadiusKm Float    @default(3)
+  rating           Float    @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  owner        User          @relation(fields: [ownerId], references: [id])
+  shopProducts ShopProduct[]
+  orders       Order[]
+  settlements  Settlement[]
+  carts        Cart[]
+}
+
+model ShopProduct {
+  id        String   @id @default(uuid())
+  shopId    String
+  productId String
+  price     Float
+  available Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  shop    Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([shopId, productId])
+}
+
+model Cart {
+  id         String   @id @default(uuid())
+  customerId String   @unique
+  shopId     String?
+  items      String   @default("[]") // JSON: [{shopProductId, quantity}]
+  updatedAt  DateTime @updatedAt
+
+  customer User  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  shop     Shop? @relation(fields: [shopId], references: [id])
+}
+
+model Order {
+  id                String   @id @default(uuid())
+  customerId        String
+  shopId            String
+  items             String   @default("[]") // JSON
+  pricing           String   @default("{}") // JSON
+  deliveryOption    String // home_delivery | self_pickup
+  paymentMethod     String
+  addressId         String?
+  deliveryPartnerId String?
+  linkedOrderId     String?
+  status            String   @default("placed")
+  history           String   @default("[]") // JSON array of {status,at,note}
+  createdAt         DateTime @default(now())
+
+  customer User     @relation(fields: [customerId], references: [id])
+  shop     Shop     @relation(fields: [shopId], references: [id])
+  address  Address? @relation(fields: [addressId], references: [id])
+  delivery Delivery?
+  payments Payment[]
+}
+
+model Delivery {
+  id                String    @id @default(uuid())
+  orderId           String    @unique
+  deliveryPartnerId String
+  status            String    @default("assigned") // assigned|accepted|picked_up|delivered
+  earnings          Float?
+  acceptedAt        DateTime?
+  pickedUpAt        DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime  @default(now())
+
+  order   Order @relation(fields: [orderId], references: [id])
+  partner User  @relation(fields: [deliveryPartnerId], references: [id])
+}
+
+model Payment {
+  id                String    @id @default(uuid())
+  orderId           String
+  customerId        String
+  amount            Float
+  method            String // upi|card|net_banking|wallet|cod
+  status            String // captured|pending_on_delivery|failed|refunded
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  razorpaySignature String?
+  createdAt         DateTime  @default(now())
+  confirmedAt       DateTime?
+
+  order    Order @relation(fields: [orderId], references: [id])
+  customer User  @relation(fields: [customerId], references: [id])
+}
+
+model Settlement {
+  id                    String    @id @default(uuid())
+  type                  String // shopkeeper|delivery_partner
+  beneficiaryId         String
+  shopId                String?
+  cycleLabel            String    @default("T+1")
+  orderCount            Int       @default(0)
+  grossAmount           Float     @default(0)
+  refundAdjustments     Float     @default(0)
+  replacementDeductions Float     @default(0)
+  netAmount             Float     @default(0)
+  status                String    @default("generated") // generated|paid
+  createdAt             DateTime  @default(now())
+  paidAt                DateTime?
+
+  beneficiary User  @relation(fields: [beneficiaryId], references: [id])
+  shop        Shop? @relation(fields: [shopId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  event     String
+  payload   String   @default("{}") // JSON
+  channels  String   @default("[\"in_app\"]") // JSON array
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Coupon {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  discountType String // flat|percentage
+  value        Float
+  maxDiscount  Float?
+  validFrom    DateTime
+  validTo      DateTime
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+model City {
+  id         String     @id @default(uuid())
+  name       String
+  state      String?
+  isActive   Boolean    @default(true)
+  localities Locality[]
+}
+
+model Locality {
+  id       String  @id @default(uuid())
+  cityId   String
+  name     String
+  isActive Boolean @default(true)
+
+  city City @relation(fields: [cityId], references: [id])
+}
+
+model AuditLog {
+  id      String   @id @default(uuid())
+  actorId String
+  action  String
+  details String   @default("{}") // JSON
+  at      DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+}
+
+model SystemConfig {
+  id                     String @id @default("singleton")
+  platformServiceFee     Float  @default(5)
+  deliveryFeeBase        Float  @default(20)
+  defaultSettlementCycle String @default("T+1")
+}
