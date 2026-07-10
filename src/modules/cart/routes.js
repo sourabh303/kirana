@@ -10,7 +10,7 @@ const router = express.Router();
 router.use(authenticate, authorize(ROLES.CUSTOMER));
 
 router.get('/', asyncHandler(controller.view));
-router.post('/items', validateBody(['shopProductId', 'quantity']), asyncHandler(controller.addItem));
+router.post('/items', validateBody(['shopId', 'shopProductId', 'quantity']), asyncHandler(controller.addItem));
 router.patch('/items/:shopProductId', validateBody(['quantity']), asyncHandler(controller.updateItem));
 router.delete('/', asyncHandler(controller.clear));
 

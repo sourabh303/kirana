@@ -16,6 +16,7 @@ const settlementsRoutes = require('./modules/settlements/routes');
 const notificationsRoutes = require('./modules/notifications/routes');
 const reportsRoutes = require('./modules/reports/routes');
 const adminRoutes = require('./modules/admin/routes');
+const path = require('path');
 
 const app = express();
 
@@ -39,6 +40,18 @@ app.use('/api/settlements', settlementsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/admin', adminRoutes);
+
+// Serve frontend build if it exists
+const frontendPath = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendPath));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
+  res.sendFile(path.join(frontendPath, 'index.html'), err => {
+    if (err) next();
+  });
+});
 
 app.use(notFound);
 app.use(errorHandler);
