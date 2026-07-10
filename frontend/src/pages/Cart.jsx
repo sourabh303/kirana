@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ShoppingCart } from 'lucide-react';
 import { cartService, orderService } from '../services/api';
 
 export default function Cart() {
@@ -30,6 +31,9 @@ export default function Cart() {
   };
 
   const handleClearCart = async () => {
+    if (!window.confirm('Are you sure you want to clear your entire cart?')) {
+      return;
+    }
     try {
       await cartService.clearCart();
       loadCart();
@@ -68,7 +72,17 @@ export default function Cart() {
       <h2>Your Cart</h2>
 
       {!cart || cart.items.length === 0 ? (
-        <p>Your cart is empty.</p>
+        <div style={{ textAlign: 'center', padding: '40px 20px', background: '#f8f9fa', borderRadius: '8px', marginTop: '20px' }}>
+          <ShoppingCart size={48} color="#ccc" style={{ marginBottom: '16px' }} />
+          <h3 style={{ color: '#555', marginBottom: '8px' }}>Your cart is empty</h3>
+          <p style={{ color: '#777', marginBottom: '24px' }}>Looks like you haven't added anything to your cart yet.</p>
+          <button
+            onClick={() => navigate('/')}
+            style={{ padding: '10px 20px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+          >
+            Browse Nearby Shops
+          </button>
+        </div>
       ) : (
         <>
           <div style={{ marginBottom: '20px' }}>
