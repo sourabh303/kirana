@@ -1,0 +1,12 @@
+
+> kirana-marketplace-prototype@0.1.0 dev
+> node --watch src/server.js
+
+Database already seeded. Skipping.
+
+Kirana Marketplace API listening on http://localhost:4000
+[0mGET /health [32m200[0m 2.026 ms - 56[0m
+[0mGET / [33m404[0m 1.147 ms - 62[0m
+[0mGET /favicon.ico [33m404[0m 0.647 ms - 73[0m
+[0mGET /api/auth [33m404[0m 0.544 ms - 70[0m
+[0mGET /health [32m200[0m 0.269 ms - 56[0m
