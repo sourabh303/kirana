@@ -43,9 +43,33 @@ async function update(shopId, updates) {
 
 // PRD 6 — Store Selection: "Choose any nearby shop within the delivery radius."
 async function discoverNearby({ lat, lng, category }) {
-  const shops = await prisma.shop.findMany({
-    where: { isActive: true, ...(category ? { category } : {}) },
-  });
+  let whereClause = { isActive: true, ...(category ? { category } : {}) };
+
+  // ⚡ Bolt: Geo-bounding box optimization
+  // Reduces O(all_shops) memory loading to O(local_shops) before exact haversine filter
+  // Assumes a maximum reasonable delivery radius (e.g., 50km) for the bounding box
+  if (lat && lng) {
+    const MAX_RADIUS_KM = 50; // generous upper bound for any kirana delivery
+    // 1 deg lat ≈ 111km
+    const latDelta = MAX_RADIUS_KM / 111;
+    // 1 deg lng ≈ 111km * cos(lat)
+    const lngDelta = MAX_RADIUS_KM / (111 * Math.cos((lat * Math.PI) / 180));
+
+    whereClause = {
+      ...whereClause,
+      lat: {
+        gte: lat - latDelta,
+        lte: lat + latDelta,
+      },
+      lng: {
+        gte: lng - lngDelta,
+        lte: lng + lngDelta,
+      },
+    };
+  }
+
+  const shops = await prisma.shop.findMany({ where: whereClause });
+
   return shops
     .map((s) => ({
       ...s,

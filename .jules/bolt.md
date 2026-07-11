@@ -1,0 +1,3 @@
+## 2024-05-18 - [Geo Bounding Box for Shop Discovery]
+**Learning:** Due to SQLite lacking built-in mathematical/trigonometric functions for geolocation filtering like Haversine directly in queries, geofencing queries inherently lead to N+1 / high memory load problems if left unchecked since it has to fallback to pulling all records into application memory to filter.
+**Action:** Always pre-filter data using a fast geo bounding-box (bounding rectangle) first in the database query. This ensures memory loading is restricted to O(local) instead of O(global) before the application logic processes exact geofencing.
