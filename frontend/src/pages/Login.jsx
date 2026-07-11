@@ -6,17 +6,20 @@ export default function Login() {
   const [mobile, setMobile] = useState('9990000001'); // Default to seeded customer
   const [password, setPassword] = useState('password123');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
     try {
       await login(mobile, password);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
+      setIsLoading(false);
     }
   };
 
@@ -47,8 +50,19 @@ export default function Login() {
             style={{ width: '100%', padding: '8px' }}
           />
         </div>
-        <button type="submit" style={{ padding: '10px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}>
-          Login
+        <button
+          type="submit"
+          disabled={isLoading}
+          style={{
+            padding: '10px',
+            background: isLoading ? '#6c757d' : '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: isLoading ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {isLoading ? 'Logging in...' : 'Login'}
         </button>
       </form>
 
